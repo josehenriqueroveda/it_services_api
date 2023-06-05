@@ -51,5 +51,4 @@ async def info(request: Request):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8008))
-    # run(app, host="0.0.0.0", port=port)
-    run(app, host="10.80.34.112", port=port)
+    run(app, host="0.0.0.0", port=port)
