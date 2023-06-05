@@ -45,7 +45,7 @@ async def info(request: Request):
     return """
     <h2><span style="color: #339966;">IT Services API</span></h2>
     <p style="font-size: 1.5em;">API developed for IT services.</p>
-    <p style="font-size: 1.5em;">Access the <a href="http://0.0.0.0:8000/docs">Docs Page</a> to read the documentation.</p>
+    <p style="font-size: 1.5em;">Access the <a href="/docs">Docs Page</a> to read the documentation.</p>
     <p><strong>Developer</strong>: Jose Henrique Roveda<br/><strong>Version</strong>: 1.0.1</p>"""
 
 
