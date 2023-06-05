@@ -78,7 +78,7 @@ def _lemmatize_text(text):
 
 @category_router.post("/v1/sharepoint/category", tags=["IT Tickets"])
 @lim.limit("600/minute")
-async def sharepoint_category(t: Ticket, request: Request):
+async def sharepoint_category(t: Ticket, request: Request) -> str:
     """Categorize Sharepoint tickets.
     Args:
         t (Ticket): Ticket to be categorized.
@@ -106,7 +106,7 @@ async def sharepoint_category(t: Ticket, request: Request):
 
 @category_router.post("/v1/glpi/category", tags=["IT Tickets"])
 @lim.limit("600/minute")
-async def glpi_category(t: Ticket, request: Request):
+async def glpi_category(t: Ticket, request: Request) -> str:
     """Categorize GLPI tickets.
     Args:
         t (Ticket): Ticket to be categorized.
