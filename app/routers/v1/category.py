@@ -16,7 +16,7 @@ category_router = APIRouter()
 
 # Sharepoint
 words_model_sp = pd.read_csv(
-    "data/words_model.csv",
+    "data/words_model_sp.csv",
     sep=",",
     encoding="utf-8",
     usecols=["unigram", "weight", "category"],
@@ -26,7 +26,7 @@ categories_sp = list(words_model_sp["category"].value_counts().index)
 
 # GLPI
 words_model_glpi = pd.read_csv(
-    "data/words_model.csv",
+    "data/words_model_glpi.csv",
     sep=",",
     encoding="utf-8",
     usecols=["unigram", "weight", "category"],
