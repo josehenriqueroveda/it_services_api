@@ -21,10 +21,10 @@ async def update_groups(request: Request, accesses: List[Access]):
         dict: Response status message.
     """
     try:
-        print(accesses)
         csv_path = DESTINIATION_PATH
-        df = pd.DataFrame(accesses)
-        df.to_csv(csv_path, sep=";", index=False)
+        body = [item for item in accesses if item["email"] and item["group"]]
+        df = pd.DataFrame(body, columns=["email", "group", "action"])
+        df.to_csv(csv_path, sep=';', index=False)
         return {"message": "Groups updated successfully!"}
     except Exception as e:
         return {"message": f"Error: {e}"}
