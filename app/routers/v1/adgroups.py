@@ -22,7 +22,7 @@ async def update_groups(request: Request, accesses: List[Access]):
     """
     try:
         csv_path = DESTINIATION_PATH
-        body = [item for item in accesses if item["email"] and item["group"]]
+        body = [{"email": item.email, "group": item.group, "action": item.action} for item in accesses if item.email and item.group]
         df = pd.DataFrame(body, columns=["email", "group", "action"])
         df.to_csv(csv_path, sep=';', index=False)
         return {"message": "Groups updated successfully!"}
