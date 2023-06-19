@@ -1,18 +1,22 @@
 import pandas as pd
 import re
 import spacy
+import openai
 from fastapi import APIRouter, Request
 from config.limiter import lim
+from data.constants import TICKET_CLASSIFICATION_PROMPT, OPENAI_API_KEY, DELIMITER
+import json
 from models.Ticket import Ticket
+from models.UserMessage import UserMessage
 import sys
 import warnings
 
 sys.path.append("..")
 warnings.filterwarnings("ignore")
 
-nlp = spacy.load("pt_core_news_sm")
-
 category_router = APIRouter()
+
+nlp = spacy.load("pt_core_news_sm")
 
 # Sharepoint
 words_model_sp = pd.read_csv(
@@ -33,6 +37,28 @@ words_model_glpi = pd.read_csv(
 )
 
 categories_glpi = list(words_model_glpi["category"].value_counts().index)
+
+# Category AI
+openai.api_key = OPENAI_API_KEY
+system_prompt = TICKET_CLASSIFICATION_PROMPT
+delimiter = DELIMITER
+
+
+def get_category_ai(messages, model="gpt-3.5-turbo", temperature=0, max_tokens=500):
+    """
+    Get the category of a ticket using OpenAI's GPT-3 model.
+    Args:
+        messages (list): List of messages to send to the GPT-3 model.
+        model (str): Name of the GPT-3 model to use. Defaults to "gpt-3.5-turbo".
+        temperature (float): Sampling temperature to use when generating responses. Defaults to 0.
+        max_tokens (int): Maximum number of tokens to generate in the response. Defaults to 500.
+    Returns:
+        dict: Primary and secondary categories of the ticket as predicted by the GPT-3 model.
+    """
+    response = openai.ChatCompletion.create(
+        model=model, messages=messages, temperature=temperature, max_tokens=max_tokens
+    )
+    return response.choices[0].message["content"]
 
 
 def _find_keyword(keyword, word, weight):
@@ -130,3 +156,25 @@ async def glpi_category(t: Ticket, request: Request) -> str:
         return max_score["category"] if max_score["score"] > 0 else "Others..."
     except Exception as e:
         return str(e)
+
+
+@category_router.post("/v1/tickets/category", tags=["IT Tickets"])
+@lim.limit("60/minute")
+async def tickets_category(user_message: UserMessage, request: Request):
+    """Categorize tickets.
+    Args:
+        user_message (UserMessage): Description of the ticket.
+        Returns:
+            json: Category of the ticket.
+    """
+    try:
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"{delimiter}{user_message.message}{delimiter}"},
+        ]
+        response = get_category_ai(messages)
+        response = json.loads(response)
+        return response
+    except Exception as e:
+        return {"error": str(e)}
