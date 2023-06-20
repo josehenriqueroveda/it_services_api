@@ -1,15 +1,18 @@
-import pandas as pd
-import re
-import spacy
-import openai
-from fastapi import APIRouter, Request
-from config.limiter import lim
-from data.constants import TICKET_CLASSIFICATION_PROMPT, OPENAI_API_KEY, DELIMITER
 import json
-from models.Ticket import Ticket
-from models.UserMessage import UserMessage
+import re
 import sys
 import warnings
+
+import openai
+import pandas as pd
+import spacy
+from fastapi import APIRouter, Request
+
+from config.limiter import lim
+from data.constants import DELIMITER, OPENAI_API_KEY, TICKET_CLASSIFICATION_PROMPT
+from models.Ticket import Ticket
+from models.UserMessage import UserMessage
+from models.CategoryResponse import CategoryResponse
 
 sys.path.append("..")
 warnings.filterwarnings("ignore")
@@ -61,24 +64,24 @@ def get_category_ai(messages, model="gpt-3.5-turbo", temperature=0, max_tokens=5
     return response.choices[0].message["content"]
 
 
-def _find_keyword(keyword, word, weight):
+def find_keyword(keyword, word, weight) -> int:
     """Find keyword in text.
     Args:
         keyword (str): Keyword to be found.
         word (str): Word to be compared.
         weight (int): Weight of the keyword.
-        Returns:
-            int: Weight of the keyword if found, 0 otherwise.
+    Returns:
+        int: Weight of the keyword if found, 0 otherwise.
     """
     return int(weight) if keyword == word else 0
 
 
-def _clean_text(text):
+def clean_text(text) -> str:
     """Clean text.
     Args:
         text (str): Text to be cleaned.
-        Returns:
-            str: Cleaned text.
+    Returns:
+        str: Cleaned text.
     """
     text = text.lower()
     pattern = r"[^\w\s]"
@@ -88,12 +91,12 @@ def _clean_text(text):
     return text
 
 
-def _lemmatize_text(text):
+def lemmatize_text(text) -> str:
     """Lemmatize text.
     Args:
         text (str): Text to be lemmatized.
-        Returns:
-            str: Lemmatized text.
+    Returns:
+        str: Lemmatized text.
     """
     sent = []
     doc = nlp(text)
@@ -102,28 +105,18 @@ def _lemmatize_text(text):
     return " ".join(sent)
 
 
-@category_router.post("/v1/sharepoint/category", tags=["IT Tickets"])
+@category_router.post("/v1/sharepoint/category", tags=["IT Tickets"], response_model=CategoryResponse)
 @lim.limit("600/minute")
-async def sharepoint_category(t: Ticket, request: Request) -> str:
+async def sharepoint_category(ticket: Ticket, request: Request) -> str:
     """Categorize Sharepoint tickets.
     Args:
-        t (Ticket): Ticket to be categorized.
-        Returns:
-            str: Category of the ticket.
+        ticket (Ticket): Ticket to be categorized.
+    Returns:
+        str: Category of the ticket.
     """
     try:
-        scores = []
-        text = t.title + " " + t.description
-        text = _clean_text(text)
-        text = _lemmatize_text(text)
-        text = text.split()
-        for cat in categories_sp:
-            score = 0
-            temp = words_model_sp[words_model_sp["category"] == cat]
-            for _, row in temp.iterrows():
-                for w in text:
-                    score += _find_keyword(row["unigram"], w, row["weight"])
-            scores.append({"category": cat, "score": score})
+        text = lemmatize_text(clean_text(ticket.title + " " + ticket.description)).split()
+        scores = [{"category": cat, "score": sum(find_keyword(row["unigram"], w, row["weight"]) for w in text for _, row in words_model_sp[words_model_sp["category"] == cat].iterrows())} for cat in categories_sp]
         max_score = max(scores, key=lambda x: x["score"])
         return max_score["category"] if max_score["score"] > 0 else "Others..."
     except Exception as e:
@@ -132,40 +125,30 @@ async def sharepoint_category(t: Ticket, request: Request) -> str:
 
 @category_router.post("/v1/glpi/category", tags=["IT Tickets"])
 @lim.limit("600/minute")
-async def glpi_category(t: Ticket, request: Request) -> str:
+async def glpi_category(ticket: Ticket, request: Request) -> str:
     """Categorize GLPI tickets.
     Args:
-        t (Ticket): Ticket to be categorized.
-        Returns:
-            str: Category of the ticket.
+        ticket (Ticket): Ticket to be categorized.
+    Returns:
+        str: Category of the ticket.
     """
     try:
-        scores = []
-        text = t.title + " " + t.description
-        text = _clean_text(text)
-        text = _lemmatize_text(text)
-        text = text.split()
-        for cat in categories_glpi:
-            score = 0
-            temp = words_model_glpi[words_model_glpi["category"] == cat]
-            for _, row in temp.iterrows():
-                for w in text:
-                    score += _find_keyword(row["unigram"], w, row["weight"])
-            scores.append({"category": cat, "score": score})
+        text = lemmatize_text(clean_text(ticket.title + " " + ticket.description)).split()
+        scores = [{"category": cat, "score": sum(find_keyword(row["unigram"], w, row["weight"]) for w in text for _, row in words_model_glpi[words_model_glpi["category"] == cat].iterrows())} for cat in categories_glpi]
         max_score = max(scores, key=lambda x: x["score"])
         return max_score["category"] if max_score["score"] > 0 else "Others..."
     except Exception as e:
         return str(e)
 
 
-@category_router.post("/v1/tickets/category", tags=["IT Tickets"])
+@category_router.post("/v1/tickets/category", tags=["IT Tickets"], response_model=CategoryResponse)
 @lim.limit("60/minute")
 async def tickets_category(user_message: UserMessage, request: Request):
     """Categorize tickets.
     Args:
         user_message (UserMessage): Description of the ticket.
-        Returns:
-            json: Category of the ticket.
+    Returns:
+        json: Primary and secondary categories of the ticket.
     """
     try:
 

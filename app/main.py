@@ -1,15 +1,15 @@
-import pandas as pd
 import os
+
 from uvicorn import run
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+
 from config.limiter import lim
 from routers.v1.category import category_router
 from routers.v1.adgroups import adgroups_router
-
 
 limiter = lim
 
