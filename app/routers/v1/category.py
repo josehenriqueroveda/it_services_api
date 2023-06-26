@@ -47,7 +47,7 @@ system_prompt = TICKET_CLASSIFICATION_PROMPT
 delimiter = DELIMITER
 
 
-def get_category_ai(messages, model="gpt-3.5-turbo", temperature=0, max_tokens=500):
+def get_category_ai(messages, model="gpt-3.5-turbo", temperature=0, max_tokens=1000):
     """
     Get the category of a ticket using OpenAI's GPT-3 model.
     Args:
