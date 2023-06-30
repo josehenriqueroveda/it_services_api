@@ -61,6 +61,7 @@ async def update_groups(accesses: List[Access], request: Request):
                 if item.email and item.group and item.action
             ]
             df = pd.DataFrame(body, columns=["email", "group", "action"])
+            df.dropna(inplace=True)
             df.to_csv(f, sep=";", index=False)
         return {"message": "Groups updated successfully."}
     except Exception as e:
