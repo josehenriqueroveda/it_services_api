@@ -50,6 +50,20 @@ The response will be a string containing the category of the ticket:
 ```json
   "SAP"
 ```
+### OpenAI Ticket Categorization
+```http
+POST /v1/tickets/category
+```
+To make the categorization for a single ticket, send a **POST** request to `/v1/tickets/category` with a JSON object containing the ticket data. The following fields are required:
+ - `user_message`: a string with the description of the ticket.
+
+The response will be a json containing the primary and secondary categories of the ticket:
+```json
+{
+  "primary_category": "Network",
+  "secondary_category": "SAP"
+}
+```
  ### AD Groups Users
  ```http
 POST /v1/groups/users
