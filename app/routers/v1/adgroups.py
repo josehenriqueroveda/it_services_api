@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 
 from config.limiter import lim
 from data.constants import (
-    DESTINIATION_PATH,
+    DESTINATION_PATH,
     GROUPS_QUERY,
     MSSQL_CONN,
     PBI_GROUPS_QUERY,
@@ -54,15 +54,14 @@ async def update_groups(accesses: List[Access], request: Request):
         dict: Response status message.
     """
     try:
-        with open_file(DESTINIATION_PATH, "w") as f:
-            body = [
-                {"email": item.email, "group": item.group, "action": item.action}
-                for item in accesses
-                if item.email and item.group and item.action
-            ]
-            df = pd.DataFrame(body, columns=["email", "group", "action"])
-            df.dropna(inplace=True)
-            df.to_csv(f, sep=";", index=False)
+        body = [
+            {"email": item.email, "group": item.group, "action": item.action}
+            for item in accesses
+            if item.email and item.group and item.action
+        ]
+        df = pd.DataFrame(body, columns=["email", "group", "action"])
+        df.dropna(inplace=True)
+        df.to_csv(DESTINATION_PATH, sep=";", index=False)
         return {"message": "Groups updated successfully."}
     except Exception as e:
         logger.error(f"Error updating groups: {e}")
