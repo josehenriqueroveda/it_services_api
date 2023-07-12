@@ -3,17 +3,14 @@ import re
 import sys
 import warnings
 
-import openai
 import pandas as pd
 import spacy
-from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Request, Response
 
 from config.limiter import lim
-from data.constants import DELIMITER, OPENAI_API_KEY, TICKET_CLASSIFICATION_PROMPT
 from models.Ticket import Ticket
+from models.TicketClassifier import TicketClassifier
 from models.UserMessage import UserMessage
-from models.CategoryResponse import CategoryResponse
 
 sys.path.append("..")
 warnings.filterwarnings("ignore")
@@ -42,29 +39,8 @@ words_model_glpi = pd.read_csv(
 
 categories_glpi = list(words_model_glpi["category"].value_counts().index)
 
-# Category AI
-openai.api_key = OPENAI_API_KEY
-system_prompt = TICKET_CLASSIFICATION_PROMPT
-delimiter = DELIMITER
 
-
-def get_category_ai(messages, model="gpt-3.5-turbo", temperature=0, max_tokens=1000):
-    """
-    Get the category of a ticket using OpenAI's GPT-3 model.
-    Args:
-        messages (list): List of messages to send to the GPT-3 model.
-        model (str): Name of the GPT-3 model to use. Defaults to "gpt-3.5-turbo".
-        temperature (float): Sampling temperature to use when generating responses. Defaults to 0.
-        max_tokens (int): Maximum number of tokens to generate in the response. Defaults to 500.
-    Returns:
-        dict: Primary and secondary categories of the ticket as predicted by the GPT-3 model.
-    """
-    response = openai.ChatCompletion.create(
-        model=model, messages=messages, temperature=temperature, max_tokens=max_tokens
-    )
-    return response.choices[0].message["content"]
-
-
+# Helper functions
 def find_keyword(keyword, word, weight) -> int:
     """Find keyword in text.
     Args:
@@ -106,9 +82,9 @@ def lemmatize_text(text) -> str:
     return " ".join(sent)
 
 
+# API routes
 @category_router.post(
-    "/v1/sharepoint/category", tags=["IT Tickets"], response_model=CategoryResponse
-)
+    "/v1/sharepoint/category", tags=["IT Tickets"])
 @lim.limit("600/minute")
 async def sharepoint_category(ticket: Ticket, request: Request) -> str:
     """Categorize Sharepoint tickets.
@@ -173,26 +149,24 @@ async def glpi_category(ticket: Ticket, request: Request) -> str:
 
 
 @category_router.post(
-    "/v1/tickets/category", tags=["IT Tickets"], response_model=CategoryResponse
-)
+    "/v1/ai/tickets/category", tags=["IT Tickets"])
 @lim.limit("60/minute")
 async def tickets_category(user_message: UserMessage, request: Request):
     """Categorize tickets.
     Args:
-        user_message (UserMessage): Description of the ticket.
+        user_message (UserMessage): Description of the ticket.F
     Returns:
-        json: Primary and secondary categories of the ticket.
+        json: Category of the ticket.
     """
     try:
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {
-                "role": "user",
-                "content": f"{delimiter}{user_message.message}{delimiter}",
-            },
-        ]
-        response = get_category_ai(messages)
-        response = json.loads(response)
-        return response
+        ticket_classifier = TicketClassifier()
+        response = ticket_classifier.classify_ticket(user_message.message)
+        if response:
+            return json.loads(response)
+        else:
+            return Response(
+                content=json.dumps({"error": "No category found."}),
+                media_type="application/json",
+            )
     except Exception as e:
-        return {"error": str(e)}
+        return Response(content=json.dumps({"error": str(e)}), media_type="application/json")
